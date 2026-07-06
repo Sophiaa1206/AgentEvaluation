@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>评测平台大画布原型</title>
+  <style>
+    :root {
+      --bg: #eef1f5;
+      --canvas: #e8edf3;
+      --frame: #fff;
+      --line: #d8dee8;
+      --line-strong: #b8c2d2;
+      --text: #172033;
+      --muted: #667085;
+      --blue: #2563eb;
+      --blue-soft: #e8f0ff;
+      --green: #16855f;
+      --green-soft: #e7f6ef;
+      --amber: #b7791f;
+      --amber-soft: #fff4d6;
+      --red: #c2413a;
+      --red-soft: #fde9e7;
+      --gray-soft: #eef2f6;
+      --sidebar: #111827;
+      --shadow: 0 20px 60px rgba(21, 31, 54, .16);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      letter-spacing: 0;
+      overflow: hidden;
+    }
+    button, input, select, textarea { font: inherit; }
+
+    .toolbar {
+      position: fixed;
+      z-index: 30;
+      top: 16px;
+      right: 16px;
+      height: 46px;
+      border: 1px solid var(--line);
+      border-radius: 23px;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 30px rgba(21,31,54,.10);
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+    }
+    .zoom-controls { display: flex; align-items: center; gap: 8px; }
+    .zoom-value { min-width: 52px; text-align: center; color: var(--muted); font-weight: 700; }
+    .btn {
+      height: 34px;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--text);
+      padding: 0 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 700; }
+    .btn.text { border-color: transparent; color: var(--blue); background: transparent; padding: 0 6px; }
+
+    .viewport {
+      position: fixed;
+      inset: 0;
+      overflow: auto;
+      padding: 150px 80px 80px;
+      background:
+        linear-gradient(var(--canvas) 1px, transparent 1px),
+        linear-gradient(90deg, var(--canvas) 1px, transparent 1px);
+      background-size: 32px 32px;
+      background-color: #f4f6fa;
+    }
+    .canvas { position: relative; width: 7380px; height: 2550px; transform-origin: 0 0; }
+    .frame {
+      position: absolute;
+      width: 1180px;
+      min-height: 760px;
+      background: var(--frame);
+      border: 1px solid #cdd5e2;
+      box-shadow: var(--shadow);
+      overflow: visible;
+    }
+    .frame-label {
+      position: absolute;
+      top: -68px;
+      left: -4px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #344054;
+      font-weight: 800;
+      font-size: 18px;
+      z-index: 5;
+    }
+    .seq {
+      min-width: 106px;
+      height: 46px;
+      border-radius: 23px;
+      background: #0f172a;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      padding: 0 16px;
+      box-shadow: 0 12px 28px rgba(16,24,40,.24);
+    }
+    .prototype {
+      position: relative;
+      display: grid;
+      grid-template-columns: 190px minmax(0,1fr);
+      min-height: inherit;
+      background: #f6f7f9;
+      overflow: hidden;
+    }
+    .side { background: var(--sidebar); padding: 18px 12px; color: #cbd5e1; }
+    .brand { height: 42px; display: flex; align-items: center; gap: 10px; color: #fff; font-weight: 800; margin-bottom: 24px; padding: 0 8px; }
+    .mark { width: 28px; height: 28px; border-radius: 7px; background: var(--blue); color: #fff; display: grid; place-items: center; font-weight: 900; }
+    .nav { display: flex; flex-direction: column; gap: 6px; }
+    .nav-item { height: 40px; border-radius: 7px; display: flex; align-items: center; gap: 10px; padding: 0 10px; color: #cbd5e1; }
+    .nav-item.active { background: #243044; color: #fff; font-weight: 700; }
+    .nav-icon { width: 18px; text-align: center; }
+    .work { min-width: 0; background: #f6f7f9; max-height: 760px; overflow: auto; }
+    .page-body { padding: 0 16px 26px; }
+    .page-title-row {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+      padding: 20px 0 16px;
+      background: #f6f7f9;
+    }
+    .inline-title { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+    .inline-title.with-back { align-items: center; gap: 10px; }
+    .inline-title .crumb { font-size: 22px; color: var(--muted); }
+    h1 { font-size: 22px; line-height: 1.25; margin: 0 0 6px; }
+    .inline-title h1 { margin: 0; }
+    .subtext, .helper { color: var(--muted); line-height: 1.55; }
+    .helper { font-size: 12px; }
+    .top-actions { display: flex; align-items: center; gap: 10px; }
+    .back-btn {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      padding: 0;
+    }
+    .back-btn:hover { background: #f1f3f6; }
+    .back-btn::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-left: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      transform: rotate(45deg);
+      margin-left: 3px;
+    }
+
+    .toolbar-line {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr)) 72px;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .toolbar-line .input, .toolbar-line .select { width: 100%; min-width: 0; }
+    .toolbar-line .btn { justify-self: end; }
+    .toolbar-line.single {
+      grid-template-columns: minmax(0, 360px);
+    }
+    .filter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 32px; margin-top: 14px; }
+    .input, .select, .textarea {
+      width: 100%;
+      min-height: 34px;
+      border: 1px solid #d0d5dd;
+      border-radius: 7px;
+      background: #fff;
+      color: var(--text);
+      padding: 0 10px;
+      outline: none;
+    }
+    .textarea { min-height: 82px; padding: 10px; resize: none; }
+    .readonly-control { background: #f9fafb; color: #475467; }
+
+    .section { background: #fff; border: 1px solid var(--line); border-radius: 9px; margin-bottom: 14px; overflow: hidden; }
+    .section-head { min-height: 48px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 14px; gap: 12px; }
+    .section-title { font-weight: 800; }
+    .section-body { padding: 14px; }
+    .flat-section { background: transparent; border: 0; border-radius: 0; overflow: visible; }
+    .flat-section .section-head { border-bottom: 0; }
+    .flat-section .section-title { display: inline-flex; align-items: center; gap: 8px; }
+    .flat-section .section-title::before { content: ""; width: 4px; height: 16px; border-radius: 2px; background: var(--blue); display: inline-block; }
+
+    .table-wrap { background: #fff; border: 1px solid var(--line); border-radius: 9px; overflow: auto; }
+    table { width: 100%; min-width: 1120px; border-collapse: collapse; table-layout: fixed; }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 12px 14px;
+      text-align: left;
+      vertical-align: middle;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      background: #fff;
+    }
+    th { background: #f9fafb; color: #475467; font-size: 13px; font-weight: 700; }
+    th:first-child, td:first-child { position: sticky; left: 0; z-index: 2; background: #fff; border-right: 1px solid var(--line); }
+    th:first-child { z-index: 3; background: #f9fafb; }
+    tr:last-child td { border-bottom: 0; }
+    .task-table { min-width: 980px; }
+    .task-table th:first-child, .task-table td:first-child { min-width: 180px; box-shadow: 8px 0 14px -14px rgba(16,24,40,.35); }
+    .task-table th:last-child, .task-table td:last-child,
+    .case-run-table th:last-child, .case-run-table td:last-child,
+    .version-table th:last-child, .version-table td:last-child {
+      position: sticky;
+      right: 0;
+      z-index: 2;
+      background: #fff;
+      border-left: 1px solid var(--line);
+      box-shadow: -8px 0 14px -14px rgba(16,24,40,.35);
+    }
+    .task-table th:last-child, .case-run-table th:last-child, .version-table th:last-child { z-index: 3; background: #f9fafb; }
+    .case-run-table { min-width: 1040px; }
+    .case-run-table th:nth-child(4), .case-run-table td:nth-child(4),
+    .case-run-table th:nth-child(5), .case-run-table td:nth-child(5),
+    .case-run-table th:nth-child(6), .case-run-table td:nth-child(6) { text-align: center; }
+    .case-run-table .status { min-width: 48px; padding: 0 6px; }
+    .dataset-table { min-width: 820px; }
+    .version-table { min-width: 920px; }
+    .preview-table { min-width: 0; width: 100%; }
+
+    .status, .state-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 68px;
+      height: 24px;
+      border-radius: 12px;
+      padding: 0 9px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .queued { color: var(--amber); background: var(--amber-soft); }
+    .running { color: var(--blue); background: var(--blue-soft); }
+    .done { color: var(--green); background: var(--green-soft); }
+    .ready { color: #475467; background: var(--gray-soft); }
+    .stopped, .timeout { color: var(--red); background: var(--red-soft); }
+    .state-tag { min-width: auto; background: var(--amber-soft); color: var(--amber); }
+    .progress-text { font-weight: 700; color: #344054; }
+
+    .icon-actions { display: flex; align-items: center; gap: 6px; }
+    .icon-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      border: 0;
+      background: transparent;
+      color: #98a2b3;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .icon-btn:hover, .mini-action:hover { background: #f1f3f6; color: #667085; }
+    .mini-action { height: 28px; border: 0; background: transparent; color: #98a2b3; padding: 0 4px; font-size: 13px; cursor: pointer; }
+    .eye-icon { position: relative; width: 18px; height: 12px; border: 1.8px solid currentColor; border-radius: 50%; display: inline-block; }
+    .eye-icon::after { content: ""; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; border-radius: 50%; background: currentColor; transform: translate(-50%, -50%); }
+    .mask-icon, .edit-icon, .trash-icon, .book-icon, .publish-icon {
+      width: 18px;
+      height: 18px;
+      display: inline-block;
+      background: currentColor;
+      -webkit-mask: var(--mask) center / contain no-repeat;
+      mask: var(--mask) center / contain no-repeat;
+    }
+    .edit-icon { --mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 1024 1024' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M945.4 162.8l-84.9-84.9a48.5 48.5 0 0 0-34.8-14.1 56.5 56.5 0 0 0-39.8 16.8L467.1 399.4a57.8 57.8 0 0 0-15.7 29.1l-30.6 150.4a20 20 0 0 0 19.5 24 19 19 0 0 0 4.1-0.4L594.8 572a56.9 56.9 0 0 0 29.1-15.8l318.8-318.8c21.4-21.3 22.6-54.7 2.7-74.6zM576 502.3l-69 14 14-68.9 213.7-213.7 54.9 55z m253.2-253.2l-54.9-55 50.3-50.3 54.9 55zM892 512h-64a4 4 0 0 0-4 4v308H200V200h308a4 4 0 0 0 4-4v-64a4 4 0 0 0-4-4H168a40 40 0 0 0-40 40v688a40 40 0 0 0 40 40h688a40 40 0 0 0 40-40V516a4 4 0 0 0-4-4z'/%3E%3C/svg%3E"); }
+    .trash-icon { --mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 1024 1024' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M800 256h-576a30.08 30.08 0 0 0-32 32 30.08 30.08 0 0 0 32 32H256v576a64 64 0 0 0 64 64h384a64 64 0 0 0 64-64V320h32a30.08 30.08 0 0 0 32-32 30.08 30.08 0 0 0-32-32zM448 799.36a33.28 33.28 0 0 1-64 0v-384a33.28 33.28 0 0 1 64 0z m192 0a33.28 33.28 0 0 1-64 0v-384a33.28 33.28 0 0 1 64 0zM800 128H640v-32a32.64 32.64 0 0 0-32-32h-192a32 32 0 0 0-32 32V128H224a30.08 30.08 0 0 0-32 32 30.08 30.08 0 0 0 32 32h576a30.08 30.08 0 0 0 32-32 30.08 30.08 0 0 0-32-32z'/%3E%3C/svg%3E"); }
+    .publish-icon { --mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 1024 1024' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M784 872c-4 0-8-0.8-11.2-2.4 0 0-103.2-54.4-224-118.4-12-6.4-16-20.8-9.6-32.8 6.4-12 20.8-16 32.8-9.6 80 42.4 152.8 80.8 192 101.6l56-592L227.2 528c33.6 17.6 85.6 44.8 144.8 76 12 6.4 16 20.8 10.4 32s-20.8 16-32 10.4c-104-54.4-185.6-97.6-185.6-97.6-8-4-12.8-12-12.8-21.6 0-8.8 4.8-16.8 12.8-21.6l672-352c8-4 17.6-3.2 24.8 1.6 7.2 4.8 11.2 13.6 10.4 22.4l-64 672c-0.8 8-5.6 15.2-12.8 19.2-3.2 2.4-7.2 3.2-11.2 3.2z'/%3E%3Cpath d='M458.4 867.2c-13.6 0-24-10.4-24-24v-176c0-5.6 1.6-10.4 4.8-15.2l389.6-491.2c8-10.4 23.2-12 33.6-4 10.4 8 12 23.2 4 33.6l-384 484.8v168c0 13.6-10.4 24-24 24z'/%3E%3C/svg%3E"); }
+    .book-icon { --mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 1024 1024' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M877.35808 696.4992a23.04 23.04 0 0 1 22.38464-40.27904l29.44 16.36352c37.7856 20.992 50.0992 67.28704 26.49088 102.58432a76.42624 76.42624 0 0 1-26.48576 24.2176l-378.33728 210.23744c-24.7296 13.7472-55.5264 13.7472-80.256 0L92.25728 799.3856c-37.7856-20.992-50.09408-67.28704-26.48576-102.58432a76.42624 76.42624 0 0 1 26.48576-24.21248l29.83424-16.57856a23.04 23.04 0 0 1 22.37952 40.27904l-29.82912 16.57856a30.38208 30.38208 0 0 0-10.56768 9.55392c-8.35072 12.48768-4.08064 28.54912 10.56768 36.68992l378.33216 210.24256c10.81344 6.00576 24.6784 6.00576 35.49184 0l378.33728-210.24256a30.38208 30.38208 0 0 0 10.56768-9.55904c8.35072-12.48768 4.08064-28.54912-10.56768-36.6848l-29.44512-16.36352z m-2.432-219.21792a23.04 23.04 0 0 1 22.37952-40.27904l31.88224 17.7152c37.78048 20.992 50.09408 67.28704 26.48576 102.58432a76.42624 76.42624 0 0 1-26.48576 24.2176l-378.33728 210.23744c-24.7296 13.74208-55.5264 13.74208-80.256 0l-378.33728-210.24256c-37.7856-20.992-50.09408-67.28704-26.48576-102.58432a76.42624 76.42624 0 0 1 26.48576-24.2176l31.98976-17.77152a23.04 23.04 0 1 1 22.38464 40.27904l-31.98976 17.77664a30.38208 30.38208 0 0 0-10.56768 9.55392c-8.35072 12.48768-4.08064 28.54912 10.56768 36.6848l378.33216 210.24256c10.81344 6.01088 24.6784 6.01088 35.49184 0l378.33728-210.24256a30.38208 30.38208 0 0 0 10.56768-9.55392c8.35072-12.48768 4.08064-28.54912-10.56768-36.6848l-31.87712-17.7152z m-350.52544-415.18592a28.16 28.16 0 0 0-27.35616 0L117.32992 273.1008a28.16 28.16 0 0 0 0 49.2288l379.71456 211.01056a28.16 28.16 0 0 0 27.35616 0l379.71456-211.01056a28.16 28.16 0 0 0 0-49.2288l-379.71456-211.00544z m402.0992 170.7264c35.84 19.9168 48.7424 65.11616 28.83072 100.95616a74.24 74.24 0 0 1-28.83072 28.83072l-379.71456 211.01056a74.24 74.24 0 0 1-72.12544 0L94.94528 362.60864c-35.84-19.9168-48.74752-65.11616-28.83072-100.95104a74.24 74.24 0 0 1 28.8256-28.83584L474.66496 21.81632a74.24 74.24 0 0 1 72.12544 0l379.71456 211.00544z'/%3E%3C/svg%3E"); }
+
+    .pagination { min-height: 54px; display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 10px 0 0; color: var(--text); font-size: 14px; font-weight: 400; }
+    .page-btn { width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: var(--text); display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 400; }
+    .page-btn.active { background: var(--blue); color: #fff; }
+    .page-size { height: 30px; min-width: 92px; border: 1px solid #d0d5dd; border-radius: 6px; appearance: none; background: #fff; color: var(--text); padding: 0 28px 0 10px; font-size: 14px; outline: 0; cursor: pointer; }
+
+    .form { display: grid; grid-template-columns: 1fr; gap: 16px 34px; }
+    .form.two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .form.dataset-modal-form { gap: 16px 34px; }
+    .form.dataset-modal-form .version-start, .form.dataset-modal-form .version-peer { padding-top: 14px; margin-top: 4px; border-top: 1px solid var(--line); }
+    .field { display: flex; flex-direction: column; gap: 7px; }
+    .field.full { grid-column: 1 / -1; }
+    .label { color: #344054; font-weight: 700; font-size: 13px; }
+    #frame-create .label, #frame-create-select-modal .label, #frame-dataset-create-modal .label, #frame-version-create-modal .label { color: var(--muted); }
+    .field-static { min-height: 34px; display: flex; align-items: center; color: var(--text); }
+
+    .choice { border: 0; border-radius: 9px; padding: 12px; background: #fff; min-height: 82px; box-shadow: 0 8px 24px rgba(21,31,54,.10); }
+    .choice.selected-row { min-height: 74px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    .choice-name { font-weight: 800; margin-bottom: 8px; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+    .pill { height: 24px; border-radius: 12px; padding: 0 8px; display: inline-flex; align-items: center; background: var(--gray-soft); color: #475467; font-size: 12px; font-weight: 700; }
+
+    .overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 36px; }
+    .readonly-item { border: 1px solid var(--line); background: #f9fafb; padding: 10px 12px; min-height: 58px; }
+    #frame-detail .readonly-item { border: 0; background: transparent; padding: 0; min-height: auto; }
+    .readonly-label { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+    .readonly-value { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .stat-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 20px; margin-bottom: 14px; }
+    .stat { background: #fff; border: 1px solid var(--line); border-radius: 9px; padding: 14px 16px; min-height: 84px; }
+    .stat-name { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+    .stat-value { font-size: 26px; font-weight: 800; line-height: 1; }
+
+    .query-cell { cursor: help; }
+    .floating-tooltip {
+      position: fixed;
+      z-index: 100;
+      display: none;
+      max-width: 520px;
+      max-height: 260px;
+      overflow: auto;
+      pointer-events: none;
+      white-space: normal;
+      word-break: break-word;
+      line-height: 1.6;
+      color: #667085;
+      background: #f1f3f6;
+      border: 0;
+      border-radius: 6px;
+      padding: 12px 14px;
+      box-shadow: 0 10px 26px rgba(21,31,54,.12);
+    }
+    .floating-tooltip.show { display: block; }
+
+    .detail-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 36px; align-items: start; }
+    .detail-layout.compact { grid-template-columns: 150px minmax(0, 1fr); }
+    .version-list { display: flex; flex-direction: column; gap: 20px; }
+    .version-item { border: 1px solid var(--line); background: #fff; padding: 12px; min-height: 74px; }
+    .version-item.active { border-color: var(--blue); box-shadow: inset 0 0 0 1px var(--blue); }
+    .version-item strong { display: block; margin-bottom: 6px; }
+    .detail-layout.compact .version-item { min-height: 48px; display: flex; align-items: center; }
+    .detail-layout.compact .version-item strong { margin-bottom: 0; }
+
+    .modal-layer { position: absolute; inset: 0; z-index: 20; background: rgba(15,23,42,.35); display: flex; align-items: center; justify-content: center; padding: 28px; }
+    .modal-layer.hidden { display: none; }
+    .modal-card { width: 620px; max-height: 680px; background: #fff; border: 1px solid var(--line); box-shadow: 0 24px 70px rgba(15,23,42,.26); display: flex; flex-direction: column; }
+    .modal-card.wide { width: 760px; }
+    .modal-card.confirm { width: 420px; }
+    .modal-head { min-height: 58px; padding: 0 18px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .modal-title { font-size: 17px; font-weight: 800; }
+    .modal-body { padding: 18px; overflow: auto; }
+    .modal-foot { min-height: 58px; padding: 12px 18px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+    .modal-search { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 24px; margin-bottom: 12px; }
+    .option-list { border: 1px solid var(--line); background: #fff; }
+    .option-row { min-height: 62px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: 22px; padding: 10px 12px; }
+    .option-row:last-child { border-bottom: 0; }
+    .radio-dot { width: 16px; height: 16px; border: 1.8px solid var(--line-strong); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
+    .option-row.selected .radio-dot { border-color: var(--blue); }
+    .option-row.selected .radio-dot::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
+    .upload-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-bottom: 14px; }
+    .upload-box { border: 1px dashed var(--line-strong); background: #f9fafb; min-height: 92px; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); }
+    .notice { border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; padding: 10px 12px; line-height: 1.5; margin-bottom: 14px; }
+    .doc-schema { margin-top: 10px; color: var(--muted); line-height: 1.7; }
+    .toast { position: fixed; left: 50%; bottom: 28px; z-index: 60; transform: translate(-50%, 18px); opacity: 0; pointer-events: none; min-width: 280px; max-width: 560px; min-height: 46px; border-radius: 10px; background: #101828; color: #fff; display: flex; align-items: center; justify-content: center; padding: 10px 16px; box-shadow: 0 18px 46px rgba(16,24,40,.28); font-weight: 800; transition: opacity .18s ease, transform .18s ease; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <div class="zoom-controls">
+      <button class="btn" id="zoom-out">－</button>
+      <span class="zoom-value" id="zoom-value">80%</span>
+      <button class="btn" id="zoom-in">＋</button>
+      <button class="btn" id="zoom-reset">重置</button>
+    </div>
+  </div>
+
+  <div class="viewport" id="viewport">
+    <div class="canvas" id="canvas">
+      <section class="frame" id="frame-list" style="left:0; top:0;">
+        <div class="frame-label"><span class="seq">页面 01</span>query批跑 / 任务列表</div>
+        <div class="prototype">
+          <aside class="side"><div class="brand"><span class="mark">评</span>评测平台</div><nav class="nav"><div class="nav-item"><span class="nav-icon">▣</span>评测大盘</div><div class="nav-item active"><span class="nav-icon">▶</span>query批跑</div><div class="nav-item"><span class="nav-icon">□</span>评测集管理</div></nav></aside>
+          <main class="work">
+            <div class="page-body">
+              <div class="page-title-row"><div><h1>query批跑</h1><div class="subtext">查看批跑任务状态，进入任务详情查看已完成 case 的执行数据。</div></div><div class="top-actions"><button class="btn primary" data-nav="frame-create" data-toast="点击后进入：页面 02 query批跑 / 新建批跑">＋ 新建批跑</button></div></div>
+              <div class="toolbar-line single"><input class="input" placeholder="搜索任务名称 / 任务id"></div>
+              <div class="table-wrap">
+                <table class="task-table">
+                  <thead><tr><th style="width:180px">任务名称</th><th style="width:160px">评测集</th><th style="width:110px">模型</th><th style="width:135px">环境</th><th style="width:92px">状态</th><th style="width:85px">进度</th><th style="width:90px">操作人</th><th style="width:116px">操作</th></tr></thead>
+                  <tbody>
+                    <tr><td>7月办公文档批跑</td><td>办公文档生成集 v3</td><td>Lingxi-M4</td><td>prod-cn / v2.8.1</td><td><span class="status done">已完成</span></td><td><span class="progress-text">88/88</span></td><td>Sophia</td><td><div class="icon-actions"><button class="icon-btn" title="查看详情" data-nav="frame-detail" data-toast="点击后进入：页面 03 query批跑 / 任务详情"><span class="eye-icon"></span></button><button class="icon-btn" title="启动"><span>▶</span></button><button class="icon-btn" title="删除"><span class="trash-icon"></span></button></div></td></tr>
+                    <tr><td>搜索引用回归批跑</td><td>复杂检索集 v1</td><td>Lingxi-M3</td><td>prod-cn / v2.8.1</td><td><span class="status running">运行中</span></td><td><span class="progress-text">42/80</span></td><td>Yuki</td><td><div class="icon-actions"><button class="icon-btn" title="查看详情"><span class="eye-icon"></span></button><button class="icon-btn" title="终止"><span>■</span></button><button class="icon-btn" title="删除"><span class="trash-icon"></span></button></div></td></tr>
+                    <tr><td>附件任务稳定性批跑</td><td>附件任务集 v2</td><td>Lingxi-M4</td><td>prod-cn / v2.8.1</td><td><span class="status queued">排队中</span></td><td><span class="progress-text">0/84</span></td><td>Chen</td><td><div class="icon-actions"><button class="icon-btn" title="查看详情"><span class="eye-icon"></span></button><button class="icon-btn" title="终止"><span>■</span></button><button class="icon-btn" title="删除"><span class="trash-icon"></span></button></div></td></tr>
+                    <tr><td>表格处理对齐批跑</td><td>表格任务集 v5</td><td>Lingxi-M4</td><td>prod-cn / v2.8.1</td><td><span class="status ready">待启动</span></td><td><span class="progress-text">0/66</span></td><td>Han</td><td><div class="icon-actions"><button class="icon-btn" title="编辑"><span class="edit-icon"></span></button><button class="icon-btn" title="启动"><span>▶</span></button><button class="icon-btn" title="删除"><span class="trash-icon"></span></button></div></td></tr>
+                    <tr><td>PPT 生成异常复测</td><td>办公文档生成集 v3</td><td>Lingxi-M3</td><td>prod-cn / v2.8.1</td><td><span class="status stopped">运行中断</span></td><td><span class="progress-text">19/64</span></td><td>Sophia</td><td><div class="icon-actions"><button class="icon-btn" title="查看详情"><span class="eye-icon"></span></button><button class="icon-btn" title="启动"><span>▶</span></button><button class="icon-btn" title="删除"><span class="trash-icon"></span></button></div></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="pagination"><span>共 5 项数据</span><button class="page-btn">←</button><button class="page-btn active">1</button><button class="page-btn">→</button><select class="page-size"><option>10 条/页</option><option>30 条/页</option><option>50 条/页</option><option>100 条/页</option></select></div>
+            </div>
+          </main>
+        </div>
+      </section>
+
+      <section class="frame" id="frame-create" style="left:1480px; top:0;">
+        <div class="frame-label"><span class="seq">页面 02</span>query批跑 / 新建批跑</div>
+        <div class="prototype">
+          <aside class="side"><div class="brand"><span class="mark">评</span>评测平台</div><nav class="nav"><div class="nav-item"><span class="nav-icon">▣</span>评测大盘</div><div class="nav-item active"><span class="nav-icon">▶</span>query批跑</div><div class="nav-item"><span class="nav-icon">□</span>评测集管理</div></nav></aside>
+          <main class="work">
+            <div class="page-body">
+              <div class="page-title-row"><div><div class="inline-title"><span class="crumb">query批跑 /</span><h1>新建批跑</h1></div></div><div class="top-actions"><button class="btn" data-nav="frame-list">取消</button><button class="btn" data-nav="frame-list" data-toast="已暂存，返回：页面 01 query批跑">暂存</button><button class="btn primary" data-toast="弹窗确认：开始批跑">开始批跑</button></div></div>
+              <div class="section flat-section"><div class="section-head"><div class="section-title">基础信息</div></div><div class="section-body"><div class="form two-col"><div class="field"><label class="label">任务名称</label><input class="input" value="7月办公文档批跑"></div><div class="field"><label class="label">创建人</label><input class="input" value="Sophia"></div><div class="field full"><label class="label">任务说明</label><input class="input" value="验证办公文档生成类任务在当前模型上的稳定性。"></div></div></div></div>
+              <div class="section flat-section"><div class="section-head"><div class="section-title">评测集</div><button class="btn" data-nav="frame-create-select-modal" data-toast="点击后进入：页面 02-弹窗 选择评测集">选择评测集</button></div><div class="section-body"><div class="choice selected-row"><div><div class="choice-name">办公文档生成集 v3</div><div class="helper">128 cases · 文档生成 · 2026-07-03 14:32</div></div><button class="icon-btn" title="删除"><span class="trash-icon"></span></button></div></div></div>
+              <div class="section flat-section"><div class="section-head"><div class="section-title">批跑设置</div></div><div class="section-body"><div class="form two-col"><div class="field"><label class="label">模型</label><select class="select"><option>Lingxi-M4</option><option>Lingxi-M3</option></select></div><div class="field"><label class="label">当前灵犀环境</label><div class="field-static">prod-cn / v2.8.1</div></div></div></div></div>
+            </div>
+          </main>
+        </div>
+      </section>
+
+      <section class="frame" id="frame-create-select-modal" style="left:2960px; top:0;">
+        <div class="frame-label"><span class="seq">页面 02-弹窗</span>query批跑 / 选择评测集</div>
+        <div class="prototype">
+          <aside class="side"><div class="brand"><span class="mark">评</span>评测平台</div><nav class="nav"><div class="nav-item"><span class="nav-icon">▣</span>评测大盘</div><div class="nav-item active"><span class="nav-icon">▶</span>query批跑</div><div class="nav-item"><span class="nav-icon">□</span>评测集管理</div></nav></aside>
+          <main class="work"><div class="page-body"><div class="page-title-row"><div><div class="inline-title"><span class="crumb">query批跑 /</span><h1>新建批跑</h1></div></div></div></div></main>
+          <div class="modal-layer"><div class="modal-card wide"><div class="modal-head"><div class="modal-title">选择评测集</div><button class="icon-btn" data-nav="frame-create" title="关闭">×</button></div><div class="modal-body"><div class="modal-search"><input class="input" placeholder="搜索评测集名称"></div><div class="notice">建批跑任务时只能选择最新且已发布的评测集版本，旧版本不会出现在列表中。</div><div class="option-list"><div class="option-row selected"><span class="radio-dot"></span><div><div class="choice-name">办公文档生成集 v3</div><div class="helper">128 cases · 文档生成 · 2026-07-03 14:32</div></div></div><div class="option-row"><span class="radio-dot"></span><div><div class="choice-name">复杂检索集 v1</div><div class="helper">30 cases · 搜索引用 · 2026-07-01 11:08</div></div></div><div class="option-row"><span class="radio-dot"></span><div><div class="choice-name">附件任务集 v2</div><div class="helper">84 cases · 多附件 · 2026-06-25 18:20</div></div></div></div></div><div class="modal-foot"><button class="btn" data-nav="frame-create">取消</button><button class="btn primary" data-nav="frame-create">确定选择</button></div></div></div>
+        </div>
+      </section>
+
+      <section class="frame" id="frame-detail" style="left:4440px; top:0;">
+        <div class="frame-label"><span class="seq">页面 03</span>query批跑 / 任务详情</div>
+        <div class="prototype">
+          <aside class="side"><div class="brand"><span class="mark">评</span>评测平台</div><nav class="nav"><div class="nav-item"><span class="nav-icon">▣</span>评测大盘</div><div class="nav-item active"><span class="nav-icon">▶</span>query批跑</div><div class="nav-item"><span class="nav-icon">□</span>评测集管理</div></nav></aside>
+          <main class="work">
+            <div class="page-body">
+              <div class="page-title-row"><div><div class="inline-title with-back"><button class="back-btn" type="button" data-nav="frame-list" aria-label="返回"></button><span class="crumb">query批跑 /</span><h1>任务详情</h1></div></div></div>
+              <div class="section flat-section">
+                <div class="section-head"><div class="section-title">任务概览</div></div>
+                <div class="section-body">
+                  <div class="overview-grid">
+                    <div class="readonly-item"><div class="readonly-label">任务名称</div><div class="readonly-value">7月办公文档批跑</div></div>
+                    <div class="readonly-item"><div class="readonly-label">创建人</div><div class="readonly-value">Sophia</div></div>
+                    <div class="readonly-item"><div class="readonly-label">评测集</div><div class="readonly-value">办公文档生成集 v3</div></div>
+                    <div class="readonly-item"><div class="readonly-label">模型</div><div class="readonly-value">Lingxi-M4</div></div>
+                    <div class="readonly-item"><div class="readonly-label">当前灵犀环境</div><div class="readonly-value">prod-cn / v2.8.1</div></div>
+                    
+                  </div>
+                </div>
+              </div>
+              <div class="section flat-section">
+                <div class="section-head"><div class="section-title">批跑执行</div><button class="btn" data-toast="下载批跑结果">下载批跑结果</button></div>
+                <div class="section-body">
+                  <div class="stat-row"><div class="stat"><div class="stat-name">运行结束</div><div class="stat-value">88</div></div><div class="stat"><div class="stat-name">完成</div><div class="stat-value">82</div></div><div class="stat"><div class="stat-name">超时</div><div class="stat-value">6</div></div><div class="stat"><div class="stat-name">待运行</div><div class="stat-value">0</div></div><div class="stat"><div class="stat-name">Token</div><div class="stat-value">1.8M</div></div></div>
+                  <div class="helper" style="margin-bottom:10px;">只展示执行完成的 case；query 悬停展示完整内容。</div>
+                </div>
+                <div class="table-wrap">
+                  <table class="case-run-table">
+                    <thead><tr><th style="width:110px">case_id</th><th style="width:260px">query</th><th style="width:220px">附件</th><th style="width:92px">状态</th><th style="width:92px">耗时</th><th style="width:92px">Token</th><th style="width:150px">操作</th></tr></thead>
+                    <tbody>
+                      <tr><td>doc_001</td><td class="query-cell" data-full="根据会议纪要和项目状态表，生成一份结构化项目周报，包含本周进展、风险、阻塞项和下周计划。">根据会议纪要和项目状态表，生成一份结构化项目周报，包含本周进展、风险、阻塞项和下周计划。</td><td>meeting_notes.docx, project_status.xlsx</td><td><span class="status done">完成</span></td><td>06:42</td><td>18,420</td><td><div class="icon-actions"><button class="icon-btn" title="查看详情"><span class="eye-icon"></span></button></div></td></tr>
+                      <tr><td>doc_014</td><td class="query-cell" data-full="读取项目进展表格和产品需求文档，生成适合周会使用的 PPT，要求包含进度、风险和关键结论。">读取项目进展表格和产品需求文档，生成适合周会使用的 PPT，要求包含进度、风险和关键结论。</td><td>project_status.xlsx, prd.docx</td><td><span class="status done">完成</span></td><td>09:31</td><td>24,108</td><td><div class="icon-actions"><button class="icon-btn" title="查看详情"><span class="eye-icon"></span></button></div></td></tr>
+                      <tr><td>doc_027</td><td class="query-cell" data-full="基于合同附件输出风险摘要，要求按风险等级分类，并给出需要法务确认的条款列表。">基于合同附件输出风险摘要，要求按风险等级分类，并给出需要法务确认的条款列表。</td><td>contract.pdf</td><td><span class="status timeout">超时</span></td><td>30:00</td><td>4,210</td><td><div class="icon-actions"><button class="icon-btn" title="查看详情"><span class="eye-icon"></span></button></div></td></tr>
+                      <tr><td>doc_031</td><td class="query-cell" data-full="将用户访谈记录整理成表格，并输出洞察摘要，要求保留用户原话引用。">将用户访谈记录整理成表格，并输出洞察摘要，要求保留用户原话引用。</td><td>interview_notes.docx, tags.xlsx</td><td><span class="status done">完成</span></td><td>07:19</td><td>16,302</td><td><div class="icon-actions"><button class="icon-btn" title="查看详情"><span class="eye-icon"></span></button></div></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="pagination"><span>共 4 项数据</span><button class="page-btn">←</button><button class="page-btn active">1</button><button class="page-btn">→</button><select class="page-size"><option>10 条/页</option><option>30 条/页</option><option>50 条/页</option><option>100 条/页</option></select></div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </section>
+
+      <section class="frame" id="frame-dataset" style="left:0; top:900px;">
+        <div class="frame-label"><span class="seq">页面 04</span>评测集管理 / 首页</div>
+        <div class="prototype">
+          <aside class="side"><div class="brand"><span class="mark">评</span>评测平台</div><nav class="nav"><div class="nav-item"><span class="nav-icon">▣</span>评测大盘</div><div class="nav-item"><span class="nav-icon">▶</span>query批跑</div><div class="nav-item active"><span class="nav-icon">□</span>评测集管理</div></nav></aside>
+          <main class="work"><div class="page-body"><div class="page-title-row"><div><h1>评测集管理</h1><div class="subtext">管理已整理好的评测集、附件和版本记录。</div></div><button class="btn primary" data-nav="frame-dataset-create-modal" data-toast="点击后进入：页面 05 评测集 / 新建评测集">＋ 新建评测集</button></div><div class="toolbar-line single"><input class="input" placeholder="搜索评测集名称"></div><div class="table-wrap"><table class="dataset-table"><thead><tr><th style="width:230px">评测集名称</th><th style="width:95px">最新版本</th><th style="width:155px">最近更新时间</th><th style="width:90px">操作人</th><th style="width:110px">操作</th></tr></thead><tbody><tr><td>办公文档生成集</td><td>v3</td><td>2026-07-03 14:32</td><td>Sophia</td><td><div class="icon-actions"><button class="icon-btn" title="版本管理" data-nav="frame-version-manage" data-toast="点击后进入：页面 06 评测集 / 版本管理"><span class="book-icon"></span></button><button class="icon-btn" title="删除"><span class="trash-icon"></span></button></div></td></tr><tr><td>复杂检索集</td><td>v1</td><td>2026-07-01 11:08</td><td>Yuki</td><td><div class="icon-actions"><button class="icon-btn" title="版本管理" data-nav="frame-version-manage"><span class="book-icon"></span></button><button class="icon-btn" title="删除"><span class="trash-icon"></span></button></div></td></tr><tr><td>附件任务集</td><td>v2</td><td>2026-06-25 18:20</td><td>Chen</td><td><div class="icon-actions"><button class="icon-btn" title="版本管理" data-nav="frame-version-manage"><span class="book-icon"></span></button><button class="icon-btn" title="删除"><span class="trash-icon"></span></button></div></td></tr></tbody></table></div><div class="pagination"><span>共 3 项数据</span><button class="page-btn">←</button><button class="page-btn active">1</button><button class="page-btn">→</button><select class="page-size"><option>10 条/页</option><option>30 条/页</option><option>50 条/页</option><option>100 条/页</option></select></div></div></main>
+        </div>
+      </section>
+
+      <section class="frame" id="frame-dataset-create-modal" style="left:1480px; top:900px;">
+        <div class="frame-label"><span class="seq">页面 05</span>评测集 / 新建评测集</div>
+        <div class="prototype">
+          <aside class="side"><div class="brand"><span class="mark">评</span>评测平台</div><nav class="nav"><div class="nav-item"><span class="nav-icon">▣</span>评测大盘</div><div class="nav-item"><span class="nav-icon">▶</span>query批跑</div><div class="nav-item active"><span class="nav-icon">□</span>评测集管理</div></nav></aside>
+          <main class="work">
+            <div class="page-body">
+              <div class="page-title-row">
+                <div>
+                  <div class="inline-title"><span class="crumb">评测集 /</span><h1>新建评测集</h1></div>
+                  <div class="subtext">新上传的评测集先保存为草稿态。建批跑任务时只能选择最新且已发布的评测集版本，旧版本不会出现在选择列表中。</div>
+                </div>
+                <div class="top-actions">
+                  <button class="btn" data-nav="frame-dataset">取消</button><button class="btn primary" data-open-modal="dataset-publish-confirm">发布</button>
+                </div>
+              </div>
+              <div class="section flat-section">
+                <div class="section-head"><div class="section-title">上传评测集</div></div>
+                <div class="section-body">
+                  <div class="notice">发布后当前版本不可再修改；如需调整，只能新增版本。只有最新版本且已发布的评测集，才能在新建批跑任务时被选择。</div>
+                  <div class="form"><div class="field"><label class="label">云文档链接</label><input class="input" value="https://docs.example.com/sheets/office-doc-eval"></div></div><div class="doc-schema">表格云文档字段要求：case_id、query、附件。附件字段填写文件路径；多附件用换行区分。</div>
+                </div>
+              </div>
+              <div class="section flat-section">
+                <div class="section-head"><div class="section-title">基础信息</div></div>
+                <div class="section-body">
+                  <div class="form two-col dataset-modal-form">
+                    <div class="field"><label class="label">评测集名称</label><input class="input" value="办公文档生成集"></div>
+                    <div class="field"><label class="label">评测集说明</label><input class="input" value="覆盖文档生成、表格处理、PPT 生成等高频办公任务。"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </main>
+          <div class="modal-layer hidden" id="dataset-publish-confirm">
+            <div class="modal-card confirm">
+              <div class="modal-head">
+                <div class="modal-title">确认发布评测集？</div>
+                <button class="icon-btn" data-close-modal="dataset-publish-confirm" title="关闭">×</button>
+              </div>
+              <div class="modal-body">
+                <p style="margin:0; color:var(--text); line-height:1.7;">发布后当前版本不可修改，也不能回退。发布成功后，只有该最新且已发布版本能在新建批跑任务时被选择。</p>
+              </div>
+              <div class="modal-foot">
+                <button class="btn" data-close-modal="dataset-publish-confirm">取消</button>
+                <button class="btn primary" data-nav="frame-version-manage" data-toast="发布后进入：页面 06 评测集 / 版本管理">确认发布</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="frame" id="frame-version-manage" style="left:2960px; top:900px;">
+        <div class="frame-label"><span class="seq">页面 06</span>评测集 / 版本管理</div>
+        <div class="prototype">
+          <aside class="side"><div class="brand"><span class="mark">评</span>评测平台</div><nav class="nav"><div class="nav-item"><span class="nav-icon">▣</span>评测大盘</div><div class="nav-item"><span class="nav-icon">▶</span>query批跑</div><div class="nav-item active"><span class="nav-icon">□</span>评测集管理</div></nav></aside>
+          <main class="work"><div class="page-body"><div class="page-title-row"><div><div class="inline-title with-back"><button class="back-btn" type="button" data-nav="frame-dataset"></button><span class="crumb">评测集 /</span><h1>版本管理</h1></div><h1 style="margin-top:14px;">办公文档生成集</h1></div></div><div class="section flat-section"><div class="section-head"><div class="section-title">版本列表</div><button class="btn primary" data-nav="frame-version-create-modal" data-toast="点击后进入：页面 07 评测集 / 版本管理 / 新增版本弹窗">＋ 新增版本</button></div><div class="notice">版本发布后不能回退；旧版本即使已发布，在新建批跑任务时也不能被选中。</div><div class="table-wrap"><table class="version-table"><thead><tr><th style="width:90px">版本号</th><th style="width:90px">case 数</th><th style="width:300px">版本说明</th><th style="width:86px">状态</th><th style="width:150px">更新时间</th><th style="width:90px">创建人</th><th style="width:104px">操作</th></tr></thead><tbody><tr><td>v2</td><td>118</td><td>调整办公文档生成 query 描述，补充表格附件清单。</td><td><span class="status done">已发布</span></td><td>2026-06-27 17:10</td><td>Sophia</td><td><div class="icon-actions"><button class="icon-btn" title="查看详情" data-nav="frame-dataset-detail"><span class="eye-icon"></span></button><button class="icon-btn" title="删除"><span class="trash-icon"></span></button></div></td></tr><tr><td>v1</td><td>110</td><td>初始版本，覆盖会议纪要、合同摘要、访谈整理等基础任务。</td><td><span class="status done">已发布</span></td><td>2026-06-20 10:05</td><td>Sophia</td><td><div class="icon-actions"><button class="icon-btn" title="查看详情" data-nav="frame-dataset-detail"><span class="eye-icon"></span></button><button class="icon-btn" title="删除"><span class="trash-icon"></span></button></div></td></tr></tbody></table></div><div class="pagination"><span>共 2 项数据</span><button class="page-btn">←</button><button class="page-btn active">1</button><button class="page-btn">→</button><select class="page-size"><option>10 条/页</option><option>30 条/页</option><option>50 条/页</option><option>100 条/页</option></select></div></div></div></main>
+        </div>
+      </section>
+
+      <section class="frame" id="frame-version-create-modal" style="left:4440px; top:900px;">
+        <div class="frame-label"><span class="seq">页面 07</span>评测集 / 版本管理 / 新增版本弹窗</div>
+        <div class="prototype">
+          <aside class="side"><div class="brand"><span class="mark">评</span>评测平台</div><nav class="nav"><div class="nav-item"><span class="nav-icon">▣</span>评测大盘</div><div class="nav-item"><span class="nav-icon">▶</span>query批跑</div><div class="nav-item active"><span class="nav-icon">□</span>评测集管理</div></nav></aside>
+          <main class="work"><div class="page-body"><div class="page-title-row"><div><div class="inline-title with-back"><button class="back-btn" type="button" data-nav="frame-version-manage"></button><span class="crumb">评测集 /</span><h1>版本管理</h1></div><div class="subtext">办公文档生成集：覆盖文档生成、表格处理、PPT 生成等高频办公任务。</div></div></div></div></main>
+          <div class="modal-layer"><div class="modal-card wide"><div class="modal-head"><div class="modal-title">新增版本 <span class="state-tag">草稿</span></div><button class="icon-btn" data-nav="frame-version-manage">×</button></div><div class="modal-body"><div class="notice">新增版本先保存为草稿态。发布后该版本不可再修改，评测集基础信息保持不变。</div><div class="form"><div class="field"><label class="label">Excel 云文档链接</label><input class="input" value="https://docs.example.com/sheets/office-doc-eval-v4"></div></div><div class="doc-schema">云文档字段要求：case_id、query、附件。附件字段填写文件路径；多附件用换行区分。</div><div class="form two-col dataset-modal-form" style="margin-top:16px;"><div class="field"><label class="label">版本</label><div class="field-static">v4</div></div><div class="field"><label class="label">版本说明</label><input class="input" value="新增办公文档生成长 query 和附件解析样例"></div></div></div><div class="modal-foot"><button class="btn" data-nav="frame-version-manage">取消</button><button class="btn primary" data-nav="frame-version-manage" data-toast="发布后返回：页面 06 评测集 / 版本管理">发布</button></div></div></div>
+        </div>
+      </section>
+
+      <section class="frame" id="frame-dataset-detail" style="left:5920px; top:900px;">
+        <div class="frame-label"><span class="seq">页面 08</span>评测集 / 版本管理 / 详情（tbd）</div>
+        <div class="prototype">
+          <aside class="side"><div class="brand"><span class="mark">评</span>评测平台</div><nav class="nav"><div class="nav-item"><span class="nav-icon">▣</span>评测大盘</div><div class="nav-item"><span class="nav-icon">▶</span>query批跑</div><div class="nav-item active"><span class="nav-icon">□</span>评测集管理</div></nav></aside>
+          <main class="work"><div class="page-body"><div class="page-title-row"><div><div class="inline-title with-back"><button class="back-btn" type="button" data-nav="frame-version-manage"></button><span class="crumb">评测集 / 版本管理 /</span><h1>详情</h1></div><h1 style="margin-top:14px;">办公文档生成集</h1></div></div><div class="detail-layout compact"><div class="section flat-section"><div class="section-head"><div class="section-title">版本列表</div></div><div class="section-body"><div class="version-list"><div class="version-item active"><strong>v2</strong></div><div class="version-item"><strong>v1</strong></div></div></div></div><div class="section flat-section"><div class="section-head"><div class="section-title">评测集预览</div><div class="helper">仅展示 case_id、query、附件清单</div></div><div class="table-wrap"><table class="preview-table"><thead><tr><th style="width:110px">case_id</th><th style="width:360px">query</th><th style="width:240px">附件清单</th></tr></thead><tbody><tr><td>doc_001</td><td>根据会议纪要和项目状态表生成结构化项目周报</td><td>meeting_notes.docx, project_status.xlsx</td></tr><tr><td>doc_014</td><td>读取项目进展表格和产品需求文档，生成周会 PPT</td><td>project_status.xlsx, prd.docx</td></tr><tr><td>doc_027</td><td>基于合同附件输出风险摘要和待确认条款</td><td>contract.pdf</td></tr><tr><td>doc_031</td><td>将用户访谈记录整理成表格，并输出洞察摘要</td><td>interview_notes.docx</td></tr></tbody></table></div></div></div></div></main>
+        </div>
+      </section>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <div class="floating-tooltip" id="query-tooltip"></div>
+  <script>
+    const canvas = document.getElementById("canvas");
+    const viewport = document.getElementById("viewport");
+    const zoomValue = document.getElementById("zoom-value");
+    let zoom = 0.8;
+    function setZoom(value) {
+      zoom = Math.max(0.45, Math.min(1.25, value));
+      canvas.style.transform = `scale(${zoom})`;
+      zoomValue.textContent = `${Math.round(zoom * 100)}%`;
+    }
+    document.getElementById("zoom-in").addEventListener("click", () => setZoom(zoom + 0.1));
+    document.getElementById("zoom-out").addEventListener("click", () => setZoom(zoom - 0.1));
+    document.getElementById("zoom-reset").addEventListener("click", () => setZoom(0.8));
+    setZoom(zoom);
+
+    const toast = document.getElementById("toast");
+    let toastTimer;
+    function showToast(text) {
+      clearTimeout(toastTimer);
+      toast.textContent = text;
+      toast.classList.add("show");
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 1700);
+    }
+    document.addEventListener("click", (event) => {
+      const target = event.target.closest("[data-nav], [data-toast], [data-open-modal], [data-close-modal]");
+      if (!target) return;
+      if (target.dataset.toast) showToast(target.dataset.toast);
+      if (target.dataset.openModal) {
+        const modal = document.getElementById(target.dataset.openModal);
+        if (modal) modal.classList.remove("hidden");
+      }
+      if (target.dataset.closeModal) {
+        const modal = document.getElementById(target.dataset.closeModal);
+        if (modal) modal.classList.add("hidden");
+      }
+      if (target.dataset.nav) {
+        const frame = document.getElementById(target.dataset.nav);
+        if (frame) {
+          const left = Math.max(frame.offsetLeft * zoom - 60, 0);
+          const top = Math.max(frame.offsetTop * zoom - 100, 0);
+          viewport.scrollTo({ left, top, behavior: "smooth" });
+        }
+      }
+    });
+
+    const tooltip = document.getElementById("query-tooltip");
+    document.addEventListener("mouseover", (event) => {
+      const cell = event.target.closest(".query-cell");
+      if (!cell) return;
+      tooltip.textContent = cell.dataset.full || cell.textContent;
+      tooltip.classList.add("show");
+    });
+    document.addEventListener("mousemove", (event) => {
+      if (!tooltip.classList.contains("show")) return;
+      tooltip.style.left = Math.min(event.clientX + 14, window.innerWidth - 540) + "px";
+      tooltip.style.top = Math.min(event.clientY + 14, window.innerHeight - 280) + "px";
+    });
+    document.addEventListener("mouseout", (event) => {
+      if (event.target.closest(".query-cell")) tooltip.classList.remove("show");
+    });
+  </script>
+</body>
+</html>
